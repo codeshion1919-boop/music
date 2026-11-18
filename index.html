@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F5BFF">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>広告ゼロ プレイヤー</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap">
+<style>
+:root{
+  --bg:#EEF1F6;--panel:#FFFFFF;--ink:#1B2233;--sub:#667089;--line:#D9DFEA;
+  --accent:#2F5BFF;--on-accent:#FFFFFF;--warm:#FFB84D;--g1:#232A3D;--g2:#2C3550;
+  color-scheme:light;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#12151C;--panel:#1B2030;--ink:#E8ECF5;--sub:#8F99B3;--line:#2A3148;--accent:#6C8CFF;--on-accent:#0E1220;--g1:#0B0E16;--g2:#171C2B;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#12151C;--panel:#1B2030;--ink:#E8ECF5;--sub:#8F99B3;--line:#2A3148;--accent:#6C8CFF;--on-accent:#0E1220;--g1:#0B0E16;--g2:#171C2B;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Yu Gothic",sans-serif;line-height:1.6}
+main{max-width:520px;margin:0 auto;padding:20px 20px 40px}
+h1{font-size:15px;font-weight:700;margin:0 0 20px;color:var(--sub)}
+.stage{position:relative;width:248px;height:248px;margin:0 auto 20px}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.track-ring{fill:none;stroke:var(--line);stroke-width:5}
+.prog-ring{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;stroke-dasharray:703.7;stroke-dashoffset:703.7}
+.disc-btn{position:absolute;inset:14px;border-radius:50%;border:0;padding:0;cursor:pointer;background:none}
+.disc{width:100%;height:100%;border-radius:50%;background:repeating-radial-gradient(circle,var(--g1) 0 2px,var(--g2) 2px 4px);display:grid;place-items:center;animation:spin 7s linear infinite;animation-play-state:paused}
+.playing .disc{animation-play-state:running}
+.label{width:38%;aspect-ratio:1;border-radius:50%;background:var(--warm);position:relative}
+.label::after{content:"";position:absolute;inset:40%;border-radius:50%;background:var(--bg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.disc{animation:none}}
+.now{text-align:center;min-height:56px}
+.now b{display:block;font-size:18px;overflow-wrap:anywhere}
+.now span{color:var(--sub);font-size:13px}
+.seek{display:flex;align-items:center;gap:10px;margin:12px 0 4px;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.seek input{flex:1;accent-color:var(--accent);height:28px}
+.ctrls{display:flex;justify-content:center;align-items:center;gap:22px;margin:8px 0 14px}
+button{font:inherit;color:inherit}
+.ic{width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;display:grid;place-items:center}
+.ic svg{width:24px;height:24px;fill:currentColor}
+.ic.main{width:68px;height:68px;background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.ic.main svg{width:30px;height:30px}
+.opts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 16px;font-size:14px;cursor:pointer;min-height:40px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+label.chip{display:inline-block;line-height:1.6;text-align:center;position:relative;overflow:hidden}
+.fi{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+label.chip:focus-within{outline:3px solid var(--warm);outline-offset:2px}
+.chip.add{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+button:focus-visible,input:focus-visible{outline:3px solid var(--warm);outline-offset:2px}
+ul{list-style:none;margin:0;padding:0;background:var(--panel);border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+li{display:flex;align-items:stretch;border-bottom:1px solid var(--line)}
+li:last-child{border-bottom:0}
+li .t{flex:1;text-align:left;background:none;border:0;padding:14px 16px;cursor:pointer;overflow-wrap:anywhere;font-size:15px;min-height:48px}
+li.on .t{color:var(--accent);font-weight:700}
+li .x{width:48px;background:none;border:0;color:var(--sub);cursor:pointer;font-size:20px}
+.empty{padding:28px 20px;text-align:center;color:var(--sub);font-size:14px}
+.msg{min-height:22px;text-align:center;color:var(--sub);font-size:13px;margin:0 0 8px}
+.foot{text-align:center;color:var(--sub);font-size:12px;margin-top:18px}
+.foot button{background:none;border:0;color:var(--sub);text-decoration:underline;cursor:pointer;font-size:12px;padding:8px}
+.ly{margin-bottom:22px}
+.lyrow{display:flex;gap:8px;margin-bottom:8px}
+.lyrow input{flex:1;min-width:0;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:8px 16px;font:inherit;font-size:14px;min-height:40px}
+.cands{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.cands button{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;cursor:pointer;color:var(--sub);min-height:40px}
+.lines{position:relative;height:280px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:110px 16px;text-align:center}
+.lines:empty{display:none}
+.lines p{margin:0;padding:6px 0;font-size:16px;color:var(--sub);overflow-wrap:anywhere}
+.lines p.s{cursor:pointer}
+.lines p.on{color:var(--accent);font-size:20px;font-weight:700}
+.lysay{color:var(--sub);font-size:13px;text-align:center;margin:8px 0}
+.ly .chip{display:block;margin:0 auto}
+</style>
+</head>
+<body>
+<main id="app">
+  <h1>広告ゼロ プレイヤー</h1>
+  <div class="stage">
+    <svg viewBox="0 0 248 248" aria-hidden="true"><circle class="track-ring" cx="124" cy="124" r="112"/><circle class="prog-ring" id="ring" cx="124" cy="124" r="112"/></svg>
+    <button class="disc-btn" id="disc" aria-label="再生・一時停止"><div class="disc"><div class="label"></div></div></button>
+  </div>
+  <div class="now"><b id="title">曲を選んでください</b><span id="sub">この端末の音楽ファイルを再生します</span></div>
+  <div class="seek"><span id="cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="再生位置"><span id="dur">0:00</span></div>
+  <div class="ctrls">
+    <button class="ic" id="prev" aria-label="前の曲"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 6v12z"/></svg></button>
+    <button class="ic main" id="play" aria-label="再生"><svg viewBox="0 0 24 24"><path id="pp" d="M8 5v14l11-7z"/></svg></button>
+    <button class="ic" id="next" aria-label="次の曲"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM14.5 12 6 18V6z"/></svg></button>
+  </div>
+  <div class="opts">
+    <button class="chip" id="shuf" aria-pressed="false">シャッフル</button>
+    <button class="chip" id="rep" aria-pressed="false">リピート: オフ</button>
+    <label class="chip add" id="add">曲を追加<input type="file" id="file" class="fi" accept="audio/*,.mp3,.m4a,.aac,.flac,.wav,.ogg,.opus" multiple></label>
+  </div>
+  <section class="ly" aria-label="歌詞">
+    <div class="lyrow"><input id="lyq" type="search" placeholder="曲名 アーティスト名" aria-label="歌詞の検索語"><button class="chip" id="lybtn">歌詞を検索</button></div>
+    <div id="cands" class="cands"></div>
+    <div id="lines" class="lines"></div>
+    <p class="lysay" id="lysay" role="status">曲を再生すると、歌詞を自動で探します</p>
+    <button class="chip" id="lrcbtn">LRCファイルを読み込む</button>
+    <input type="file" id="lrcfile" accept=".lrc,.txt,text/plain" hidden>
+  </section>
+  <p class="msg" id="msg" role="status"></p>
+
+  <ul id="list"></ul>
+  <p class="foot">曲はこの端末のブラウザ内に保存されます。通信するのは歌詞検索(曲名の送信)だけです。<br><button id="clear">すべて削除</button></p>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const a=new Audio();a.preload='auto';
+let tracks=[],cur=-1,shuffle=false,rep=0,url=null,db=null;
+const REP=['オフ','全曲','1曲'];
+const fmt=s=>{if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const say=t=>{$('#msg').textContent=t};
+
+function openDB(){return new Promise(r=>{setTimeout(()=>r(null),4000);try{const q=indexedDB.open('mp1',1);q.onupgradeneeded=()=>q.result.createObjectStore('t',{keyPath:'id',autoIncrement:true});q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}})}
+const store=m=>db.transaction('t',m).objectStore('t');
+async function load(){
+  db=await openDB();
+  if(!db){say('保存が使えないため、閉じると曲は消えます');return}
+  await new Promise(r=>{setTimeout(r,4000);try{const q=store('readonly').getAll();q.onsuccess=()=>{tracks=q.result;r()};q.onerror=()=>r()}catch(e){r()}});
+}
+async function addFiles(files){
+  let n=0;
+  for(const f of files){
+    if(!(f.type.startsWith('audio/')||/\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i.test(f.name)))continue;
+    const t={name:f.name.replace(/\.[^.]+$/,''),blob:f};
+    t.id=Date.now()+n;
+    if(db){try{store('readwrite').add(t)}catch(e){}}
+    tracks.push(t);n++;
+  }
+  say(n?n+'曲を追加しました':'音楽ファイルが見つかりませんでした');
+  render();
+}
+function render(){
+  const ul=$('#list');
+  if(!tracks.length){ul.innerHTML='<div class="empty">「曲を追加」から音楽ファイルを選ぶと、ここに並びます。</div>';return}
+  ul.innerHTML='';
+  tracks.forEach((t,i)=>{
+    const li=document.createElement('li');if(i===cur)li.className='on';
+    const b=document.createElement('button');b.className='t';b.textContent=t.name;b.onclick=()=>play(i);
+    const x=document.createElement('button');x.className='x';x.textContent='×';x.setAttribute('aria-label',t.name+'を削除');x.onclick=()=>remove(i);
+    li.append(b,x);ul.append(li);
+  });
+}
+async function play(i){
+  if(i<0||i>=tracks.length)return;
+  cur=i;clearLy();
+  if(url)URL.revokeObjectURL(url);
+  url=URL.createObjectURL(tracks[i].blob);
+  a.src=url;
+  try{await a.play()}catch(e){say('再生できませんでした。もう一度タップしてください')}
+  $('#title').textContent=tracks[i].name;$('#sub').textContent=(i+1)+' / '+tracks.length;
+  if('mediaSession' in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:tracks[i].name,artist:'広告ゼロ プレイヤー'})}
+  render();
+}
+function nextIndex(dir){
+  if(!tracks.length)return -1;
+  if(shuffle&&tracks.length>1){let j;do{j=Math.floor(Math.random()*tracks.length)}while(j===cur);return j}
+  return (cur+dir+tracks.length)%tracks.length;
+}
+function toggle(){
+  if(cur<0){if(tracks.length)play(0);return}
+  a.paused?a.play().catch(()=>{}):a.pause();
+}
+async function remove(i){
+  const t=tracks[i];
+  if(db){await new Promise(r=>{try{const q=store('readwrite').delete(t.id);q.onsuccess=r;q.onerror=r}catch(e){r()}})}
+  tracks.splice(i,1);
+  if(i===cur){clearLy();a.pause();a.removeAttribute('src');cur=-1;$('#title').textContent='曲を選んでください';$('#sub').textContent='この端末の音楽ファイルを再生します'}
+  else if(i<cur)cur--;
+  render();
+}
+async function clearAll(){
+  if(!tracks.length||!confirm('保存した曲をすべて削除しますか?'))return;
+  if(db){await new Promise(r=>{try{const q=store('readwrite').clear();q.onsuccess=r;q.onerror=r}catch(e){r()}})}
+  clearLy();tracks=[];a.pause();a.removeAttribute('src');cur=-1;
+  $('#title').textContent='曲を選んでください';$('#sub').textContent='この端末の音楽ファイルを再生します';
+  render();
+}
+
+a.addEventListener('play',()=>{$('#app').classList.add('playing');$('#pp').setAttribute('d','M6 5h4v14H6zM14 5h4v14h-4z');$('#play').setAttribute('aria-label','一時停止')});
+a.addEventListener('pause',()=>{$('#app').classList.remove('playing');$('#pp').setAttribute('d','M8 5v14l11-7z');$('#play').setAttribute('aria-label','再生')});
+a.addEventListener('timeupdate',()=>{
+  const d=a.duration||0,c=a.currentTime;
+  $('#cur').textContent=fmt(c);$('#dur').textContent=fmt(d);
+  const p=d?c/d:0;
+  if(document.activeElement!==$('#seek'))$('#seek').value=Math.round(p*1000);
+  $('#ring').style.strokeDashoffset=703.7*(1-p);
+});
+a.addEventListener('ended',()=>{
+  if(rep===2){a.currentTime=0;a.play();return}
+  const i=nextIndex(1);
+  if(rep===0&&!shuffle&&cur===tracks.length-1){a.pause();return}
+  play(i);
+});
+a.addEventListener('error',()=>{if(a.src)say('この形式は再生できません')});
+
+$('#seek').addEventListener('input',e=>{if(a.duration)a.currentTime=a.duration*e.target.value/1000});
+$('#play').onclick=toggle;$('#disc').onclick=toggle;
+$('#prev').onclick=()=>{if(a.currentTime>3){a.currentTime=0}else play(nextIndex(-1))};
+$('#next').onclick=()=>play(nextIndex(1));
+$('#shuf').onclick=e=>{shuffle=!shuffle;e.currentTarget.setAttribute('aria-pressed',shuffle)};
+$('#rep').onclick=e=>{rep=(rep+1)%3;e.currentTarget.textContent='リピート: '+REP[rep];e.currentTarget.setAttribute('aria-pressed',rep>0)};
+
+$('#file').onchange=async e=>{await addFiles([...e.target.files]);e.target.value=''};
+$('#clear').onclick=clearAll;
+if('mediaSession' in navigator){
+  const m=navigator.mediaSession;
+  m.setActionHandler('play',()=>a.play());m.setActionHandler('pause',()=>a.pause());
+  m.setActionHandler('previoustrack',()=>play(nextIndex(-1)));m.setActionHandler('nexttrack',()=>play(nextIndex(1)));
+  try{m.setActionHandler('seekto',d=>{a.currentTime=d.seekTime})}catch(e){}
+}
+/* ---- 歌詞 ---- */
+let ly=[],lyI=-1;
+const box=$('#lines');
+const clean=n=>n.replace(/[\(\[（【][^\)\]）】]*[\)\]）】]/g,' ').replace(/^\d+[\s._-]+/,'').replace(/_+/g,' ').replace(/\s+-\s+/g,' ').replace(/\s+/g,' ').trim();
+function clearLy(){ly=[];lyI=-1;box.innerHTML='';$('#cands').innerHTML='';$('#lyq').value='';$('#lysay').textContent='曲を再生すると、歌詞を自動で探します'}
+function parseLRC(s){
+  const out=[];let synced=false;
+  for(const raw of s.split(/\r?\n/)){
+    const ts=[...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
+    const text=raw.replace(/\[[^\]]*\]/g,'').trim();
+    if(ts.length){synced=true;for(const m of ts)out.push({t:+m[1]*60+ +m[2],text})}
+    else if(raw.trim()&&!/^\[\w+:/.test(raw.trim()))out.push({t:null,text:raw.trim()});
+  }
+  return synced?out.filter(l=>l.t!==null).sort((x,y)=>x.t-y.t):out;
+}
+function renderLy(){
+  box.innerHTML='';
+  ly.forEach(l=>{const p=document.createElement('p');p.textContent=l.text||'♪';if(l.t!=null){p.className='s';p.onclick=()=>{a.currentTime=l.t}}box.append(p)});
+  lyI=-1;box.scrollTop=0;
+}
+function syncLy(){
+  if(!ly.length||ly[0].t==null)return;
+  const c=a.currentTime+0.2;let i=-1;
+  for(let k=0;k<ly.length;k++){if(ly[k].t<=c)i=k;else break}
+  if(i===lyI)return;
+  const ps=box.children;
+  if(lyI>=0&&ps[lyI])ps[lyI].classList.remove('on');
+  lyI=i;
+  if(i>=0&&ps[i]){ps[i].classList.add('on');box.scrollTo({top:ps[i].offsetTop-box.clientHeight/2+ps[i].offsetHeight/2,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}
+}
+function applyLy(t,text,save){
+  if(tracks[cur]!==t)return false;
+  const parsed=parseLRC(text);
+  if(!parsed.length){$('#lysay').textContent='歌詞として読み取れませんでした';return false}
+  ly=parsed;renderLy();$('#cands').innerHTML='';
+  $('#lysay').textContent=ly[0].t!=null?'歌詞が曲に合わせて進みます。行をタップするとその位置へ移動します':'時間情報のない歌詞です(同期はしません)';
+  if(save){t.lrc=text;if(db){try{store('readwrite').put(t)}catch(e){}}}
+  syncLy();return true;
+}
+function showCands(list,t){
+  const c=$('#cands');c.innerHTML='';
+  list.forEach(x=>{const b=document.createElement('button');b.textContent=x.trackName+' / '+x.artistName+' ('+fmt(x.duration)+')'+(x.syncedLyrics?'':' 同期なし');b.onclick=()=>applyLy(t,x.syncedLyrics||x.plainLyrics,true);c.append(b)});
+}
+async function searchLy(q,t,auto){
+  if(!q||!t)return;
+  const sayL=s=>{if(tracks[cur]===t)$('#lysay').textContent=s};
+  sayL('歌詞を検索中…');
+  try{
+    const ac=new AbortController();const to=setTimeout(()=>ac.abort(),9000);
+    const r=await fetch('https://lrclib.net/api/search?q='+encodeURIComponent(q),{signal:ac.signal});
+    clearTimeout(to);
+    if(!r.ok)throw new Error('http');
+    const list=(await r.json()).filter(x=>x.syncedLyrics||x.plainLyrics);
+    if(tracks[cur]!==t)return;
+    if(!list.length){sayL('見つかりませんでした。曲名を直して再検索するか、LRCファイルを読み込んでください');return}
+    const d=a.duration||0;
+    list.sort((x,y)=>(!!y.syncedLyrics-!!x.syncedLyrics)||(Math.abs(x.duration-d)-Math.abs(y.duration-d)));
+    showCands(list.slice(0,5),t);
+    if(auto)applyLy(t,list[0].syncedLyrics||list[0].plainLyrics,true);else sayL('候補から選んでください');
+  }catch(e){sayL('ネットから歌詞を取得できませんでした。LRCファイルを読み込めます')}
+}
+a.addEventListener('timeupdate',syncLy);
+a.addEventListener('loadedmetadata',()=>{
+  const t=tracks[cur];if(!t)return;
+  const q=clean(t.name);$('#lyq').value=q;
+  if(t.lrc)applyLy(t,t.lrc,false);else searchLy(q,t,true);
+});
+$('#lybtn').onclick=()=>searchLy($('#lyq').value.trim(),tracks[cur],false);
+$('#lyq').addEventListener('keydown',e=>{if(e.key==='Enter')$('#lybtn').click()});
+$('#lrcbtn').onclick=()=>{if(cur<0){$('#lysay').textContent='先に曲を再生してください';return}$('#lrcfile').click()};
+$('#lrcfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f&&cur>=0)applyLy(tracks[cur],await f.text(),true)};
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+load().then(render);
+</script>
+</body>
+</html>
