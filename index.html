@@ -77,6 +77,21 @@ li .x{width:48px;background:none;border:0;color:var(--sub);cursor:pointer;font-s
 .lines p.on{color:var(--accent);font-size:20px;font-weight:700}
 .lysay{color:var(--sub);font-size:13px;text-align:center;margin:8px 0}
 .ly .chip{display:block;margin:0 auto}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.ph{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.ph b{flex:1;font-size:16px;overflow-wrap:anywhere}
+.mini{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;min-height:36px;cursor:pointer;font-size:13px}
+.mini.back{margin-bottom:8px}
+li .m{width:44px;background:none;border:0;color:var(--sub);cursor:pointer;font-size:16px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;z-index:20}
+.sheet[hidden]{display:none}
+.sb{background:var(--panel);width:100%;max-width:520px;margin:0 auto;border-radius:20px 20px 0 0;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));max-height:75vh;overflow:auto}
+.sh{margin:4px 8px 8px;font-weight:700;overflow-wrap:anywhere}
+.si{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:14px 8px;font-size:15px;cursor:pointer;min-height:48px}
+.si.c{color:var(--sub);text-align:center}
+.ck{display:flex;align-items:center;gap:8px}
+.ck input{width:20px;height:20px;accent-color:var(--accent)}
+.opts+.opts{margin-top:-10px}
 </style>
 </head>
 <body>
@@ -108,7 +123,9 @@ li .x{width:48px;background:none;border:0;color:var(--sub);cursor:pointer;font-s
   </section>
   <p class="msg" id="msg" role="status"></p>
 
-  <ul id="list"></ul>
+  <nav class="tabs"><button class="chip" id="tLib">すべての曲</button><button class="chip" id="tPl">プレイリスト</button></nav>
+  <div id="pane"></div>
+  <div class="sheet" id="sheet" hidden><div class="sb" id="sb"></div></div>
   <p class="foot">曲はこの端末のブラウザ内に保存されます。通信するのは歌詞検索(曲名の送信)だけです。<br><button id="clear">すべて削除</button></p>
 </main>
 <script>
@@ -136,53 +153,124 @@ async function addFiles(files){
     tracks.push(t);n++;
   }
   say(n?n+'曲を追加しました':'音楽ファイルが見つかりませんでした');
-  render();
+  saveOrder();render();
 }
-function render(){
-  const ul=$('#list');
-  if(!tracks.length){ul.innerHTML='<div class="empty">「曲を追加」から音楽ファイルを選ぶと、ここに並びます。</div>';return}
-  ul.innerHTML='';
-  tracks.forEach((t,i)=>{
-    const li=document.createElement('li');if(i===cur)li.className='on';
-    const b=document.createElement('button');b.className='t';b.textContent=t.name;b.onclick=()=>play(i);
-    const x=document.createElement('button');x.className='x';x.textContent='×';x.setAttribute('aria-label',t.name+'を削除');x.onclick=()=>remove(i);
-    li.append(b,x);ul.append(li);
+const LS={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let queue=[],view='lib',edit=false,pls=LS.get('pl',[]);
+const savePl=()=>LS.set('pl',pls);
+function saveOrder(){LS.set('order',tracks.map(t=>t.id))}
+function applyOrder(){const o=LS.get('order',[]);tracks.sort((x,y)=>{const i=o.indexOf(x.id),j=o.indexOf(y.id);return (i<0?1e9:i)-(j<0?1e9:j)})}
+const byId=id=>tracks.find(t=>t.id===id);
+const mv=(arr,i,d)=>{const j=i+d;if(j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]]};
+const ce=(tag,cls)=>{const e=document.createElement(tag);if(cls)e.className=cls;return e};
+const mk=(cls,txt,fn,label)=>{const b=ce('button',cls);b.textContent=txt;b.onclick=fn;if(label)b.setAttribute('aria-label',label);return b};
+const empty=t=>{const d=ce('div','empty');d.textContent=t;return d};
+function head(title,btns){const h=ce('div','ph');const s=ce('b');s.textContent=title;h.append(s,...btns);return h}
+function rows(list,o){
+  const ul=ce('ul');
+  list.forEach((t,i)=>{
+    const li=ce('li',queue[cur]===t?'on':'');
+    li.append(mk('t',t.name,()=>o.play(i)));
+    if(edit)li.append(mk('m','▲',()=>o.move(i,-1),'上へ'),mk('m','▼',()=>o.move(i,1),'下へ'),mk('x','×',()=>o.del(i),'外す'));
+    else li.append(mk('m','⋯',()=>o.menu(i),'メニュー'));
+    ul.append(li);
   });
+  return ul;
 }
+function closeSheet(){$('#sheet').hidden=true}
+function sheet(title,items){
+  const b=$('#sb');b.innerHTML='';
+  const h=ce('p','sh');h.textContent=title;b.append(h);
+  items.forEach(it=>b.append(mk('si',it.label,()=>{closeSheet();it.fn()})));
+  b.append(mk('si c','閉じる',closeSheet));
+  $('#sheet').hidden=false;
+}
+$('#sheet').onclick=e=>{if(e.target.id==='sheet')closeSheet()};
+function newPl(){const n=(prompt('プレイリストの名前')||'').trim();if(!n)return null;const p={id:'p'+Date.now(),name:n,ids:[]};pls.push(p);savePl();return p}
+function addToPl(t){
+  const items=pls.map(p=>({label:p.name+'('+p.ids.length+'曲)',fn:()=>{if(!p.ids.includes(t.id)){p.ids.push(t.id);savePl()}say('「'+p.name+'」に追加しました');render()}}));
+  items.push({label:'＋ 新しいプレイリスト',fn:()=>{const p=newPl();if(p){p.ids.push(t.id);savePl();say('「'+p.name+'」を作って追加しました');render()}}});
+  sheet('プレイリストに追加',items);
+}
+function trackMenu(t){sheet(t.name,[{label:'プレイリストに追加',fn:()=>addToPl(t)},{label:'この曲を削除',fn:()=>delTrack(t)}])}
+function plMenu(p){sheet(p.name,[
+  {label:'名前を変更',fn:()=>{const n=(prompt('新しい名前',p.name)||'').trim();if(n){p.name=n;savePl();render()}}},
+  {label:'プレイリストを削除',fn:()=>{if(confirm('「'+p.name+'」を削除しますか?曲は消えません。')){pls=pls.filter(x=>x!==p);savePl();view='pls';edit=false;render()}}}]);
+}
+function pickSongs(p){
+  const b=$('#sb');b.innerHTML='';
+  const h=ce('p','sh');h.textContent='「'+p.name+'」に入れる曲を選ぶ';b.append(h);
+  if(!tracks.length)b.append(empty('先に「曲を追加」で曲を入れてください'));
+  const sel=new Set(p.ids);
+  tracks.forEach(t=>{const l=ce('label','si ck');const c=ce('input');c.type='checkbox';c.checked=sel.has(t.id);c.onchange=()=>{c.checked?sel.add(t.id):sel.delete(t.id)};l.append(c,document.createTextNode(t.name));b.append(l)});
+  b.append(mk('si c','完了',()=>{p.ids=[...p.ids.filter(x=>sel.has(x)),...tracks.map(t=>t.id).filter(x=>sel.has(x)&&!p.ids.includes(x))];savePl();closeSheet();render()}));
+  $('#sheet').hidden=false;
+}
+function playFrom(list,i){if(!list.length)return;queue=list.slice();play(i)}
+function render(){
+  const pane=$('#pane');pane.innerHTML='';
+  $('#tLib').setAttribute('aria-pressed',view==='lib');$('#tPl').setAttribute('aria-pressed',view!=='lib');
+  if(view==='lib'){
+    pane.append(head('すべての曲 ('+tracks.length+')',[mk('mini',edit?'完了':'並べ替え',()=>{edit=!edit;render()})]));
+    if(!tracks.length){pane.append(empty('「曲を追加」から音楽ファイルを選ぶと、ここに並びます。'));return}
+    pane.append(rows(tracks,{play:i=>playFrom(tracks,i),move:(i,d)=>{mv(tracks,i,d);saveOrder();render()},del:i=>delTrack(tracks[i]),menu:i=>trackMenu(tracks[i])}));
+    return;
+  }
+  if(view==='pls'){
+    pane.append(head('プレイリスト ('+pls.length+')',[mk('mini','＋ 作成',()=>{const p=newPl();if(p){view=p.id;edit=false;render()}})]));
+    if(!pls.length){pane.append(empty('「＋ 作成」でプレイリストを作り、好きな曲を入れましょう。'));return}
+    const ul=ce('ul');
+    pls.forEach(p=>{const li=ce('li');li.append(mk('t',p.name+'  '+p.ids.length+'曲',()=>{view=p.id;edit=false;render()}));ul.append(li)});
+    pane.append(ul);return;
+  }
+  const p=pls.find(x=>x.id===view);
+  if(!p){view='pls';render();return}
+  p.ids=p.ids.filter(id=>byId(id));
+  const list=p.ids.map(byId);
+  pane.append(mk('mini back','‹ プレイリスト一覧',()=>{view='pls';edit=false;render()}));
+  pane.append(head(p.name+' ('+list.length+'曲)',[mk('mini','⋯',()=>plMenu(p),'メニュー')]));
+  const act=ce('div','opts');
+  act.append(
+    mk('chip add','▶ 再生',()=>{shuffle=false;$('#shuf').setAttribute('aria-pressed',false);playFrom(list,0)}),
+    mk('chip','シャッフル再生',()=>{shuffle=true;$('#shuf').setAttribute('aria-pressed',true);playFrom(list,Math.floor(Math.random()*list.length))}),
+    mk('chip','曲を追加',()=>pickSongs(p)),
+    mk('chip',edit?'完了':'並べ替え',()=>{edit=!edit;render()}));
+  pane.append(act);
+  if(!list.length){pane.append(empty('まだ曲がありません。「曲を追加」で入れましょう。'));return}
+  pane.append(rows(list,{play:i=>playFrom(list,i),move:(i,d)=>{mv(p.ids,i,d);savePl();render()},del:i=>{p.ids.splice(i,1);savePl();render()},menu:i=>sheet(list[i].name,[{label:'プレイリストから外す',fn:()=>{p.ids.splice(i,1);savePl();render()}},{label:'ほかのプレイリストに追加',fn:()=>addToPl(list[i])}])}));
+}
+$('#tLib').onclick=()=>{view='lib';edit=false;render()};
+$('#tPl').onclick=()=>{view='pls';edit=false;render()};
 async function play(i){
-  if(i<0||i>=tracks.length)return;
-  cur=i;clearLy();
+  if(i<0||i>=queue.length)return;
+  const t=queue[i];cur=i;clearLy();
   if(url)URL.revokeObjectURL(url);
-  url=URL.createObjectURL(tracks[i].blob);
-  a.src=url;
+  url=URL.createObjectURL(t.blob);a.src=url;
   try{await a.play()}catch(e){say('再生できませんでした。もう一度タップしてください')}
-  $('#title').textContent=tracks[i].name;$('#sub').textContent=(i+1)+' / '+tracks.length;
-  if('mediaSession' in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:tracks[i].name,artist:'広告ゼロ プレイヤー'})}
+  $('#title').textContent=t.name;$('#sub').textContent=(i+1)+' / '+queue.length;
+  if('mediaSession' in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:t.name,artist:'広告ゼロ プレイヤー'})}
   render();
 }
 function nextIndex(dir){
-  if(!tracks.length)return -1;
-  if(shuffle&&tracks.length>1){let j;do{j=Math.floor(Math.random()*tracks.length)}while(j===cur);return j}
-  return (cur+dir+tracks.length)%tracks.length;
+  const n=queue.length;if(!n)return -1;
+  if(shuffle&&n>1){let j;do{j=Math.floor(Math.random()*n)}while(j===cur);return j}
+  return (cur+dir+n)%n;
 }
-function toggle(){
-  if(cur<0){if(tracks.length)play(0);return}
-  a.paused?a.play().catch(()=>{}):a.pause();
-}
-async function remove(i){
-  const t=tracks[i];
-  if(db){await new Promise(r=>{try{const q=store('readwrite').delete(t.id);q.onsuccess=r;q.onerror=r}catch(e){r()}})}
-  tracks.splice(i,1);
-  if(i===cur){clearLy();a.pause();a.removeAttribute('src');cur=-1;$('#title').textContent='曲を選んでください';$('#sub').textContent='この端末の音楽ファイルを再生します'}
-  else if(i<cur)cur--;
+function toggle(){if(cur<0){playFrom(tracks,0);return}a.paused?a.play().catch(()=>{}):a.pause()}
+function stopAll(){clearLy();a.pause();a.removeAttribute('src');cur=-1;$('#title').textContent='曲を選んでください';$('#sub').textContent='この端末の音楽ファイルを再生します'}
+async function delTrack(t){
+  if(!confirm('「'+t.name+'」を削除しますか?'))return;
+  if(db){await new Promise(r=>{setTimeout(r,3000);try{const q=store('readwrite').delete(t.id);q.onsuccess=r;q.onerror=r}catch(e){r()}})}
+  const playing=queue[cur];
+  tracks=tracks.filter(x=>x!==t);queue=queue.filter(x=>x!==t);
+  pls.forEach(p=>{p.ids=p.ids.filter(x=>x!==t.id)});savePl();saveOrder();
+  if(playing===t)stopAll();else cur=queue.indexOf(playing);
   render();
 }
 async function clearAll(){
-  if(!tracks.length||!confirm('保存した曲をすべて削除しますか?'))return;
-  if(db){await new Promise(r=>{try{const q=store('readwrite').clear();q.onsuccess=r;q.onerror=r}catch(e){r()}})}
-  clearLy();tracks=[];a.pause();a.removeAttribute('src');cur=-1;
-  $('#title').textContent='曲を選んでください';$('#sub').textContent='この端末の音楽ファイルを再生します';
-  render();
+  if(!tracks.length||!confirm('保存した曲をすべて削除しますか?(プレイリストの中身も空になります)'))return;
+  if(db){await new Promise(r=>{setTimeout(r,3000);try{const q=store('readwrite').clear();q.onsuccess=r;q.onerror=r}catch(e){r()}})}
+  tracks=[];queue=[];pls.forEach(p=>{p.ids=[]});savePl();saveOrder();stopAll();render();
 }
 
 a.addEventListener('play',()=>{$('#app').classList.add('playing');$('#pp').setAttribute('d','M6 5h4v14H6zM14 5h4v14h-4z');$('#play').setAttribute('aria-label','一時停止')});
@@ -197,7 +285,7 @@ a.addEventListener('timeupdate',()=>{
 a.addEventListener('ended',()=>{
   if(rep===2){a.currentTime=0;a.play();return}
   const i=nextIndex(1);
-  if(rep===0&&!shuffle&&cur===tracks.length-1){a.pause();return}
+  if(rep===0&&!shuffle&&cur===queue.length-1){a.pause();return}
   play(i);
 });
 a.addEventListener('error',()=>{if(a.src)say('この形式は再生できません')});
@@ -248,7 +336,7 @@ function syncLy(){
   if(i>=0&&ps[i]){ps[i].classList.add('on');box.scrollTo({top:ps[i].offsetTop-box.clientHeight/2+ps[i].offsetHeight/2,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}
 }
 function applyLy(t,text,save){
-  if(tracks[cur]!==t)return false;
+  if(queue[cur]!==t)return false;
   const parsed=parseLRC(text);
   if(!parsed.length){$('#lysay').textContent='歌詞として読み取れませんでした';return false}
   ly=parsed;renderLy();$('#cands').innerHTML='';
@@ -262,7 +350,7 @@ function showCands(list,t){
 }
 async function searchLy(q,t,auto){
   if(!q||!t)return;
-  const sayL=s=>{if(tracks[cur]===t)$('#lysay').textContent=s};
+  const sayL=s=>{if(queue[cur]===t)$('#lysay').textContent=s};
   sayL('歌詞を検索中…');
   try{
     const ac=new AbortController();const to=setTimeout(()=>ac.abort(),9000);
@@ -270,7 +358,7 @@ async function searchLy(q,t,auto){
     clearTimeout(to);
     if(!r.ok)throw new Error('http');
     const list=(await r.json()).filter(x=>x.syncedLyrics||x.plainLyrics);
-    if(tracks[cur]!==t)return;
+    if(queue[cur]!==t)return;
     if(!list.length){sayL('見つかりませんでした。曲名を直して再検索するか、LRCファイルを読み込んでください');return}
     const d=a.duration||0;
     list.sort((x,y)=>(!!y.syncedLyrics-!!x.syncedLyrics)||(Math.abs(x.duration-d)-Math.abs(y.duration-d)));
@@ -280,17 +368,17 @@ async function searchLy(q,t,auto){
 }
 a.addEventListener('timeupdate',syncLy);
 a.addEventListener('loadedmetadata',()=>{
-  const t=tracks[cur];if(!t)return;
+  const t=queue[cur];if(!t)return;
   const q=clean(t.name);$('#lyq').value=q;
   if(t.lrc)applyLy(t,t.lrc,false);else searchLy(q,t,true);
 });
-$('#lybtn').onclick=()=>searchLy($('#lyq').value.trim(),tracks[cur],false);
+$('#lybtn').onclick=()=>searchLy($('#lyq').value.trim(),queue[cur],false);
 $('#lyq').addEventListener('keydown',e=>{if(e.key==='Enter')$('#lybtn').click()});
 $('#lrcbtn').onclick=()=>{if(cur<0){$('#lysay').textContent='先に曲を再生してください';return}$('#lrcfile').click()};
-$('#lrcfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f&&cur>=0)applyLy(tracks[cur],await f.text(),true)};
+$('#lrcfile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(f&&cur>=0)applyLy(queue[cur],await f.text(),true)};
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
-load().then(render);
+load().then(()=>{applyOrder();render()});
 </script>
 </body>
 </html>
